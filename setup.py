@@ -35,7 +35,6 @@ setup(
         'rauth>=0.7.1',
         'authclient',
         'requests>=2.19.1',
-        'simplejson>=3.17.0',
         'six>=1.14.0',
         'python-dateutil',
         'pycparser==2.18'
