@@ -52,6 +52,8 @@ class FromJsonMixin(object):
             else:
                 setattr(obj, key, json_data[key])
 
+        obj._payload = json_data
+
         return obj
 
 
