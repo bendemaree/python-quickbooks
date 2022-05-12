@@ -246,6 +246,9 @@ class QuickBooks(object):
 
         headers.update({'Authorization': 'Bearer ' + self.session.access_token})
 
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+
         return self.session.request(
             request_type, url, headers=headers, params=params, data=data)
 
