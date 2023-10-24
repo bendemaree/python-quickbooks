@@ -4,6 +4,11 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+nose = "*"
+coverage = "*"
+
+[scripts]
+test = "nosetests . --with-coverage --cover-package=quickbooks"
 
 [packages]
 intuit-oauth = "==1.2.3"

@@ -1,26 +1,15 @@
-
-import os
-
 import unittest
-from future.moves.urllib.parse import quote
+from unittest.mock import patch
+from urllib.parse import quote
 
 from quickbooks.objects import Bill, Invoice
-
-from tests.integration.test_base import QuickbooksUnitTestCase
-
-try:
-    from mock import patch
-except ImportError:
-    from unittest.mock import patch
-
-from quickbooks import client
-
 from quickbooks.objects.base import PhoneNumber, QuickbooksBaseObject
 from quickbooks.objects.department import Department
 from quickbooks.objects.customer import Customer
 from quickbooks.objects.journalentry import JournalEntry, JournalEntryLine
 from quickbooks.objects.salesreceipt import SalesReceipt
 from quickbooks.mixins import ObjectListMixin
+from tests.integration.test_base import QuickbooksUnitTestCase
 
 
 class ToJsonMixinTest(unittest.TestCase):
