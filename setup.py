@@ -31,7 +31,7 @@ setup(
 
     install_requires=[
         'setuptools',
-        'intuit-oauth==1.2.3',
+        'intuit-oauth @ git+ssh://git@github.com/bendemaree/oauth-pythonclient@4a7e6798fc5987c02c7003c605064ccb0520268d#egg=intuit-oauth',
         'rauth>=0.7.1',
         'requests>=2.19.1',
         'simplejson>=3.17.0',
