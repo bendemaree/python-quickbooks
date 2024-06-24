@@ -1,12 +1,20 @@
 import unittest
-from unittest.mock import patch
 from urllib.parse import quote
 
-from quickbooks.objects import Bill, Invoice
+from quickbooks.objects import Bill, Invoice, Payment, BillPayment
+
+from tests.integration.test_base import QuickbooksUnitTestCase
+
+try:
+    from mock import patch
+except ImportError:
+    from unittest.mock import patch
+
 from quickbooks.objects.base import PhoneNumber, QuickbooksBaseObject
 from quickbooks.objects.department import Department
 from quickbooks.objects.customer import Customer
 from quickbooks.objects.journalentry import JournalEntry, JournalEntryLine
+from quickbooks.objects.recurringtransaction import RecurringTransaction
 from quickbooks.objects.salesreceipt import SalesReceipt
 from quickbooks.mixins import ObjectListMixin
 from tests.integration.test_base import QuickbooksUnitTestCase
@@ -19,7 +27,7 @@ class ToJsonMixinTest(unittest.TestCase):
 
         json = phone.to_json()
 
-        self.assertEquals(json, '{\n    "FreeFormNumber": "555-555-5555"\n}')
+        self.assertEqual(json, '{\n    "FreeFormNumber": "555-555-5555"\n}')
 
 
 class FromJsonMixinTest(unittest.TestCase):
@@ -44,25 +52,25 @@ class FromJsonMixinTest(unittest.TestCase):
         entry = JournalEntry()
         new_obj = entry.from_json(self.json_data)
 
-        self.assertEquals(type(new_obj), JournalEntry)
-        self.assertEquals(new_obj.DocNumber, "123")
-        self.assertEquals(new_obj.TotalAmt, 100)
+        self.assertEqual(type(new_obj), JournalEntry)
+        self.assertEqual(new_obj.DocNumber, "123")
+        self.assertEqual(new_obj.TotalAmt, 100)
 
         line = new_obj.Line[0]
-        self.assertEquals(type(line), JournalEntryLine)
-        self.assertEquals(line.Description, "Test")
-        self.assertEquals(line.Amount, 25.54)
-        self.assertEquals(line.DetailType, "JournalEntryLineDetail")
-        self.assertEquals(line.JournalEntryLineDetail.PostingType, "Debit")
+        self.assertEqual(type(line), JournalEntryLine)
+        self.assertEqual(line.Description, "Test")
+        self.assertEqual(line.Amount, 25.54)
+        self.assertEqual(line.DetailType, "JournalEntryLineDetail")
+        self.assertEqual(line.JournalEntryLineDetail.PostingType, "Debit")
 
     def test_from_json_missing_detail_object(self):
         test_obj = QuickbooksBaseObject()
 
         new_obj = test_obj.from_json(self.json_data)
 
-        self.assertEquals(type(new_obj), QuickbooksBaseObject)
-        self.assertEquals(new_obj.DocNumber, "123")
-        self.assertEquals(new_obj.TotalAmt, 100)
+        self.assertEqual(type(new_obj), QuickbooksBaseObject)
+        self.assertEqual(new_obj.DocNumber, "123")
+        self.assertEqual(new_obj.TotalAmt, 100)
 
 
 class ToDictMixinTest(unittest.TestCase):
@@ -119,7 +127,7 @@ class ToDictMixinTest(unittest.TestCase):
             'TxnTaxDetail': None,
         }
 
-        self.assertEquals(expected, entry.to_dict())
+        self.assertEqual(expected, entry.to_dict())
 
 
 class ListMixinTest(QuickbooksUnitTestCase):
@@ -216,7 +224,7 @@ class UpdateMixinTest(QuickbooksUnitTestCase):
     def test_save_create(self, create_object):
         department = Department()
         department.save(qb=self.qb_client)
-        create_object.assert_called_once_with("Department", department.to_json())
+        create_object.assert_called_once_with("Department", department.to_json(), request_id=None, params=None)
 
     def test_save_create_with_qb(self):
         with patch.object(self.qb_client, 'create_object') as create_object:
@@ -231,7 +239,7 @@ class UpdateMixinTest(QuickbooksUnitTestCase):
         json = department.to_json()
 
         department.save(qb=self.qb_client)
-        update_object.assert_called_once_with("Department", json)
+        update_object.assert_called_once_with("Department", json, request_id=None, params=None)
 
     def test_save_update_with_qb(self):
         with patch.object(self.qb_client, 'update_object') as update_object:
@@ -274,50 +282,50 @@ class ObjectListTest(unittest.TestCase):
 
         test_primitive_list = [1, 2, 3]
         test_subclass_primitive_obj = self.TestSubclass(test_primitive_list)
-        self.assertEquals(test_primitive_list, test_subclass_primitive_obj[:])
+        self.assertEqual(test_primitive_list, test_subclass_primitive_obj[:])
 
         for index in range(0, len(test_subclass_primitive_obj)):
-            self.assertEquals(test_primitive_list[index], test_subclass_primitive_obj[index])
+            self.assertEqual(test_primitive_list[index], test_subclass_primitive_obj[index])
 
         for prim in test_subclass_primitive_obj:
-            self.assertEquals(True, prim in test_subclass_primitive_obj)
+            self.assertEqual(True, prim in test_subclass_primitive_obj)
 
-        self.assertEquals(3, test_subclass_primitive_obj.pop())
+        self.assertEqual(3, test_subclass_primitive_obj.pop())
         test_subclass_primitive_obj.append(4)
-        self.assertEquals([1, 2, 4], test_subclass_primitive_obj[:])
+        self.assertEqual([1, 2, 4], test_subclass_primitive_obj[:])
 
         test_subclass_primitive_obj[0] = 5
-        self.assertEquals([5, 2, 4], test_subclass_primitive_obj[:])
+        self.assertEqual([5, 2, 4], test_subclass_primitive_obj[:])
 
         del test_subclass_primitive_obj[0]
-        self.assertEquals([2, 4], test_subclass_primitive_obj[:])
+        self.assertEqual([2, 4], test_subclass_primitive_obj[:])
 
-        self.assertEquals([4, 2], list(reversed(test_subclass_primitive_obj)))
+        self.assertEqual([4, 2], list(reversed(test_subclass_primitive_obj)))
 
     def test_object_list_mixin_with_qb_objects(self):
 
         pn1, pn2, pn3, pn4, pn5 = PhoneNumber(), PhoneNumber(), PhoneNumber(), PhoneNumber(), PhoneNumber()
         test_object_list = [pn1, pn2, pn3]
         test_subclass_object_obj = self.TestSubclass(test_object_list)
-        self.assertEquals(test_object_list, test_subclass_object_obj[:])
+        self.assertEqual(test_object_list, test_subclass_object_obj[:])
 
         for index in range (0, len(test_subclass_object_obj)):
-            self.assertEquals(test_object_list[index], test_subclass_object_obj[index])
+            self.assertEqual(test_object_list[index], test_subclass_object_obj[index])
 
         for obj in test_subclass_object_obj:
-            self.assertEquals(True, obj in test_subclass_object_obj)
+            self.assertEqual(True, obj in test_subclass_object_obj)
 
-        self.assertEquals(pn3, test_subclass_object_obj.pop())
+        self.assertEqual(pn3, test_subclass_object_obj.pop())
         test_subclass_object_obj.append(pn4)
-        self.assertEquals([pn1, pn2, pn4], test_subclass_object_obj[:])
+        self.assertEqual([pn1, pn2, pn4], test_subclass_object_obj[:])
 
         test_subclass_object_obj[0] = pn5
-        self.assertEquals([pn5, pn2, pn4], test_subclass_object_obj[:])
+        self.assertEqual([pn5, pn2, pn4], test_subclass_object_obj[:])
 
         del test_subclass_object_obj[0]
-        self.assertEquals([pn2, pn4], test_subclass_object_obj[:])
+        self.assertEqual([pn2, pn4], test_subclass_object_obj[:])
 
-        self.assertEquals([pn4, pn2], list(reversed(test_subclass_object_obj)))
+        self.assertEqual([pn4, pn2], list(reversed(test_subclass_object_obj)))
 
 
 class DeleteMixinTest(QuickbooksUnitTestCase):
@@ -332,6 +340,16 @@ class DeleteMixinTest(QuickbooksUnitTestCase):
         bill = Bill()
         bill.Id = 1
         bill.delete(qb=self.qb_client)
+
+        self.assertTrue(delete_object.called)
+
+
+class DeleteNoIdMixinTest(QuickbooksUnitTestCase):
+    @patch('quickbooks.mixins.QuickBooks.delete_object')
+    def test_delete(self, delete_object):
+        recurring_txn = RecurringTransaction()
+        recurring_txn.Bill = Bill()
+        recurring_txn.delete(qb=self.qb_client)
 
         self.assertTrue(delete_object.called)
 
@@ -359,10 +377,31 @@ class SendMixinTest(QuickbooksUnitTestCase):
 
 class VoidMixinTest(QuickbooksUnitTestCase):
     @patch('quickbooks.mixins.QuickBooks.post')
-    def test_void(self, post):
+    def test_void_invoice(self, post):
         invoice = Invoice()
         invoice.Id = 2
         invoice.void(qb=self.qb_client)
+        self.assertTrue(post.called)
+
+    @patch('quickbooks.mixins.QuickBooks.post')
+    def test_void_payment(self, post):
+        payment = Payment()
+        payment.Id = 2
+        payment.void(qb=self.qb_client)
+        self.assertTrue(post.called)
+
+    @patch('quickbooks.mixins.QuickBooks.post')
+    def test_void_sales_receipt(self, post):
+        sales_receipt = SalesReceipt()
+        sales_receipt.Id = 2
+        sales_receipt.void(qb=self.qb_client)
+        self.assertTrue(post.called)
+
+    @patch('quickbooks.mixins.QuickBooks.post')
+    def test_void_bill_payment(self, post):
+        bill_payment = BillPayment()
+        bill_payment.Id = 2
+        bill_payment.void(qb=self.qb_client)
         self.assertTrue(post.called)
 
     def test_delete_unsaved_exception(self):

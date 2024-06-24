@@ -1,9 +1,9 @@
 from tests.integration.test_base import QuickbooksUnitTestCase
 
 try:
-    from mock import patch
+    from mock import patch, mock_open
 except ImportError:
-    from unittest.mock import patch
+    from unittest.mock import patch, mock_open
 
 from quickbooks.exceptions import QuickbooksException, SevereException, AuthorizationException
 from quickbooks import client
@@ -17,8 +17,12 @@ TEST_REFRESH_TOKEN = 'refresh'
 
 
 class ClientTest(QuickbooksUnitTestCase):
+    def setUp(self):
+        super(ClientTest, self).setUp()
+
+        self.auth_client.access_token = 'ACCESS_TOKEN'
+
     def tearDown(self):
-        client.QuickBooks.enable_global()
         self.qb_client = client.QuickBooks()
         self.qb_client._drop()
 
@@ -30,33 +34,8 @@ class ClientTest(QuickbooksUnitTestCase):
             verifier_token=TEST_VERIFIER_TOKEN,
         )
 
-        self.assertEquals(self.qb_client.company_id, "company_id")
-        self.assertEquals(self.qb_client.minorversion, 4)
-
-    def test_client_updated(self):
-        self.qb_client = client.QuickBooks(
-            sandbox=False,
-            company_id="company_id",
-        )
-
-        self.qb_client2 = client.QuickBooks(
-            sandbox=True,
-            company_id="update_company_id",
-        )
-
-        self.assertEquals(self.qb_client.sandbox, True)
-        self.assertEquals(self.qb_client.company_id, "update_company_id")
-
-        self.assertEquals(self.qb_client2.sandbox, True)
-        self.assertEquals(self.qb_client2.company_id, "update_company_id")
-
-    def test_disable_global(self):
-        client.QuickBooks.disable_global()
-        self.qb_client = client.QuickBooks()
-
-        self.assertFalse(self.qb_client.sandbox)
-        self.assertFalse(self.qb_client.company_id)
-        self.assertFalse(self.qb_client.minorversion)
+        self.assertEqual(self.qb_client.company_id, "company_id")
+        self.assertEqual(self.qb_client.minorversion, 4)
 
     def test_api_url(self):
         qb_client = client.QuickBooks(sandbox=False)
@@ -65,8 +44,14 @@ class ClientTest(QuickbooksUnitTestCase):
         self.assertFalse("sandbox" in api_url)
 
     def test_api_url_sandbox(self):
-        qb_client = client.QuickBooks(sandbox=True)
+        qb_client = client.QuickBooks(
+            auth_client=self.auth_client,
+            refresh_token='REFRESH_TOKEN',
+            company_id='COMPANY_ID',
+        )
+
         api_url = qb_client.api_url
+        print(api_url)
 
         self.assertTrue("sandbox" in api_url)
 
@@ -74,7 +59,7 @@ class ClientTest(QuickbooksUnitTestCase):
         qb_client = client.QuickBooks()
         result = qb_client.isvalid_object_name("Customer")
 
-        self.assertEquals(result, True)
+        self.assertEqual(result, True)
 
     def test_isvalid_object_name_invalid(self):
         qb_client = client.QuickBooks()
@@ -90,7 +75,8 @@ class ClientTest(QuickbooksUnitTestCase):
 
     @patch('quickbooks.client.QuickBooks.post')
     def test_misc_operation(self, post):
-        qb_client = client.QuickBooks()
+        qb_client = client.QuickBooks(company_id='COMPANY_ID', auth_client=self.auth_client)
+
         qb_client.misc_operation("end_point", "request_body")
 
         url = "https://sandbox-quickbooks.api.intuit.com/v3/company/COMPANY_ID/end_point"
@@ -117,6 +103,15 @@ class ClientTest(QuickbooksUnitTestCase):
 
         self.assertTrue(post.called)
 
+    @patch('quickbooks.client.QuickBooks.make_request')
+    def test_update_object_with_request_id(self, make_req):
+        qb_client = client.QuickBooks(auth_client=self.auth_client)
+        qb_client.company_id = "1234"
+        qb_client.update_object("Customer", "request_body", request_id="123")
+
+        url = "https://sandbox-quickbooks.api.intuit.com/v3/company/1234/customer"
+        make_req.assert_called_with("POST", url, "request_body", file_path=None, params=None, request_id="123")
+
     @patch('quickbooks.client.QuickBooks.get')
     def test_get_current_user(self, get):
         qb_client = client.QuickBooks()
@@ -128,22 +123,16 @@ class ClientTest(QuickbooksUnitTestCase):
 
     @patch('quickbooks.client.QuickBooks.make_request')
     def test_get_report(self, make_req):
-        qb_client = client.QuickBooks()
+        qb_client = client.QuickBooks(auth_client=self.auth_client)
         qb_client.company_id = "1234"
 
         qb_client.get_report("profitandloss", {1: 2})
         url = "https://sandbox-quickbooks.api.intuit.com/v3/company/1234/reports/profitandloss"
         make_req.assert_called_with("GET", url, params={1: 2})
 
-    def test_get_instance(self):
-        qb_client = client.QuickBooks()
-
-        instance = qb_client.get_instance()
-        self.assertEquals(qb_client, instance)
-
     @patch('quickbooks.client.QuickBooks.make_request')
     def test_get_single_object(self, make_req):
-        qb_client = client.QuickBooks()
+        qb_client = client.QuickBooks(auth_client=self.auth_client)
         qb_client.company_id = "1234"
 
         qb_client.get_single_object("test", 1)
@@ -227,6 +216,22 @@ class ClientTest(QuickbooksUnitTestCase):
         process_request.return_value = MockUnauthorizedResponse()
 
         self.assertRaises(AuthorizationException, receipt.download_pdf, self.qb_client)
+
+    @patch('quickbooks.client.QuickBooks.process_request')
+    def test_make_request_file_closed(self, process_request):
+        file_path = '/path/to/file.txt'
+        process_request.return_value = MockResponse()
+        with patch('builtins.open', mock_open(read_data=b'file content')) as mock_file:
+            qb_client = client.QuickBooks(auth_client=self.auth_client)
+            qb_client.make_request('POST', 
+                                   'https://sandbox-quickbooks.api.intuit.com/v3/company/COMPANY_ID/attachable', 
+                                   request_body='{"ContentType": "text/plain"}', 
+                                   file_path=file_path)
+            
+            mock_file.assert_called_once_with(file_path, 'rb')
+            mock_file.return_value.__enter__.return_value.read.assert_called_once()
+            mock_file.return_value.__exit__.assert_called_once()
+        process_request.assert_called_once()
 
 
 class MockResponse(object):

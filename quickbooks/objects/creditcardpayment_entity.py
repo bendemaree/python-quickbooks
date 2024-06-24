@@ -1,9 +1,7 @@
-from six import python_2_unicode_compatible
-from .base import Ref, QuickbooksManagedObject, QuickbooksTransactionEntity, LinkedTxnMixin
+from .base import Ref, QuickbooksManagedObject, QuickbooksTransactionEntity, LinkedTxnMixin, MetaData
 from ..mixins import DeleteMixin
 
 
-@python_2_unicode_compatible
 class CreditCardPayment(DeleteMixin, QuickbooksManagedObject, QuickbooksTransactionEntity, LinkedTxnMixin):
     """
     QBO definition: A Represents a financial transaction to record a Credit Card balance payment
@@ -17,6 +15,8 @@ class CreditCardPayment(DeleteMixin, QuickbooksManagedObject, QuickbooksTransact
     class_dict = {
         "BankAccountRef": Ref,
         "CreditCardAccountRef": Ref,
+        "VendorRef": Ref,
+        "MetaData": MetaData,
     }
 
     qbo_object_name = "CreditCardPayment"
@@ -27,9 +27,14 @@ class CreditCardPayment(DeleteMixin, QuickbooksManagedObject, QuickbooksTransact
         self.TxnDate = None
         self.Amount = 0
         self.PrivateNote = None
+        self.Memo = None
+        self.PrintStatus = None
+        self.CheckNum = None
 
         self.BankAccountRef = None
         self.CreditCardAccountRef = None
+        self.VendorRef = None
+        self.MetaData = None
 
     def __str__(self):
         return str(self.Amount)

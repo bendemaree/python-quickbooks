@@ -1,5 +1,73 @@
 Changelog
 =========
+* 0.9.7 (May 20, 2024)
+    * Added ItemAccountRef to SalesItemLineDetail
+    * Updated from_json example in readme
+
+* 0.9.7 (March 12, 2024)
+    * Update intuit-oauth dependency
+    * Updated CompanyCurrency to ref to use Code instead of Id
+    * Added missing CurrentRef property from customer object
+    * Made improvements to file attachment handling
+
+* 0.9.6 (January 2, 2024)
+    * Replace RAuth with requests_oauthlib
+    * Removed python 2 code from client.py
+    * Removed unused dependencies from Pipfile
+    * Added new fields to Employee object
+    * Added VendorAddr to Bill object
+    * Added new fields to Estimate object
+    * Fix TaxInclusiveAmt and vendor setting 1099 creation
+    * Updated readme and contributing
+
+* 0.9.5 (November 1, 2023)
+    * Added the ability to void all voidable QB types
+    * Added to_ref to CreditMemo object
+    * Added ProjectRef and ShipFromAddr to Estimate
+    * Added missing initialization for objects on DiscountLineDetail, Estimate, Employee, and Invoice
+
+* 0.9.4 (August 29, 2023)
+    * Removed python 2 compatible decorators
+    * Removed python 2 dependencies
+    * Fixed issue with MarkupInfo field on AccountBasedExpenseLineDetail
+    * Removed test files from package
+
+* 0.9.3 (March 7, 2023)
+    * Added support for Recurring Transaction
+    * Added support for optional query params
+    * Fixed errors in example code on the readme
+    * Removed enable_global and disable_global
+
+* 0.9.2 (August 3, 2022)
+    * Removed pycparser dependency
+    * Added new fields to CreditCardPayment object
+    * Added new fields to Invoice object
+    * Added new fields to Payment object
+    * Added to_linked_txn method to Payment object
+    * Added new object CustomerType
+    * Added MetaData to CompanyInfo
+    * Added update support to CompanyInfo
+    * Added new fields to Preferences object
+    * Improved exception object
+
+* 0.9.1 (November 30, 2021)
+    * Added response status code when raising unauthorized exceptions
+    * Added pending deprecation warnings to enable_global and disable_global
+    * Added more detailed messages in raised exceptions
+    * Added void method to Payment object
+    * Added option for invoice link
+    * Added support for idempotent behavior using Request ID parameter
+
+* 0.9.0 (July 20, 2021)
+    * Added missing TxnDate to Invoice
+    * Updated requirements
+    * Added BillRate to Vendor
+    * Added IsProject to Customer
+    * Added Refresh Token to Client Instance
+    * Updated Estimate and CreditMemo to use DescriptionOnlyLine
+    * Removed unused DescriptionLine object
+    * Added support for Preferences entity
+    * Added support for ExchangeRate entity
 
 * 0.8.4 (October 11, 2020)
     * Added support for the CreditCardPayment entity
