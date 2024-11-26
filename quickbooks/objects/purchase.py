@@ -1,5 +1,3 @@
-from six import python_2_unicode_compatible
-
 from quickbooks.objects.detailline import DetailLine, AccountBasedExpenseLine, ItemBasedExpenseLine, \
     TDSLine
 from .base import Ref, QuickbooksManagedObject, QuickbooksTransactionEntity, LinkedTxnMixin, \
@@ -8,7 +6,6 @@ from .tax import TxnTaxDetail
 from ..mixins import DeleteMixin
 
 
-@python_2_unicode_compatible
 class Purchase(DeleteMixin, QuickbooksManagedObject, QuickbooksTransactionEntity, LinkedTxnMixin):
     """
     QBO definition: This entity represents expenses, such as a purchase made from a vendor.
@@ -22,7 +19,7 @@ class Purchase(DeleteMixin, QuickbooksManagedObject, QuickbooksTransactionEntity
     For example, to create a transaction that sends a check to a vendor, create a Purchase object with PaymentType
     set to Check. To query Purchase transactions of a certain type, for example Check, submit the following to the
     query endpoint: SELECT * from Purchase where PaymentType='Check' You must specify an AccountRef for all purchases.
-    The TotalAmtattribute must add up to sum of Line.Amount attributes.
+    The TotalAmt attribute must add up to sum of Line.Amount attributes.
     """
     class_dict = {
         "AccountRef": Ref,

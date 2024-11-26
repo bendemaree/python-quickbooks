@@ -1,28 +1,14 @@
-try:  # Python 3
-    import http.client as httplib
-    from urllib.parse import parse_qsl
-    from functools import partial
-    to_bytes = lambda value, *args, **kwargs: bytes(value, "utf-8", *args, **kwargs)
-except ImportError:  # Python 2
-    import httplib
-    from urlparse import parse_qsl
-    to_bytes = str
-
+import http.client as httplib
 import textwrap
-import codecs
 import json
-
-from . import exceptions
 import base64
 import hashlib
 import hmac
 
-try:
-    from rauth import OAuth1Session, OAuth1Service, OAuth2Session
-except ImportError:
-    print("Please import Rauth:\n\n")
-    print("http://rauth.readthedocs.org/en/latest/\n")
-    raise
+from . import exceptions
+from requests_oauthlib import OAuth2Session
+
+to_bytes = lambda value, *args, **kwargs: bytes(value, "utf-8", *args, **kwargs)
 
 
 class Environments(object):
@@ -37,6 +23,7 @@ class QuickBooks(object):
     sandbox = False
     minorversion = None
     verifier_token = None
+    invoice_link = False
 
     sandbox_api_url_v3 = "https://sandbox-quickbooks.api.intuit.com/v3"
     api_url_v3 = "https://quickbooks.api.intuit.com/v3"
@@ -44,12 +31,13 @@ class QuickBooks(object):
 
     _BUSINESS_OBJECTS = [
         "Account", "Attachable", "Bill", "BillPayment",
-        "Class", "CreditMemo", "Customer", "CompanyCurrency",
-        "Department", "Deposit", "Employee", "Estimate", "Invoice",
+        "Class", "CreditMemo", "Customer", "CustomerType", "CompanyCurrency",
+        "Department", "Deposit", "Employee", "Estimate", "ExchangeRate", "Invoice",
         "Item", "JournalEntry", "Payment", "PaymentMethod", "Preferences",
         "Purchase", "PurchaseOrder", "RefundReceipt",
         "SalesReceipt", "TaxAgency", "TaxCode", "TaxService/Taxcode", "TaxRate", "Term",
         "TimeActivity", "Transfer", "Vendor", "VendorCredit", "CreditCardPayment",
+        "RecurringTransaction"
     ]
 
     __instance = None
@@ -77,13 +65,16 @@ class QuickBooks(object):
             else:
                 instance.sandbox = False
 
-            instance._start_session()
+            refresh_token = instance._start_session()
+            instance.refresh_token = refresh_token
 
         if 'company_id' in kwargs:
             instance.company_id = kwargs['company_id']
 
         if 'minorversion' in kwargs:
             instance.minorversion = kwargs['minorversion']
+
+        instance.invoice_link = kwargs.get('invoice_link', False)
 
         if 'verifier_token' in kwargs:
             instance.verifier_token = kwargs.get('verifier_token')
@@ -95,29 +86,14 @@ class QuickBooks(object):
             self.auth_client.refresh(refresh_token=self.refresh_token)
 
         self.session = OAuth2Session(
-            client_id=self.auth_client.client_id,
-            client_secret=self.auth_client.client_secret,
-            access_token=self.auth_client.access_token,
+            self.auth_client.client_id,
+            token={
+                'access_token': self.auth_client.access_token,
+                'refresh_token': self.auth_client.refresh_token,
+            }
         )
 
-    @classmethod
-    def get_instance(cls):
-        return cls.__instance
-
-    @classmethod
-    def disable_global(cls):
-        """
-        Disable use of singleton pattern.
-        """
-        QuickBooks.__use_global = False
-        QuickBooks.__instance = None
-
-    @classmethod
-    def enable_global(cls):
-        """
-        Allow use of singleton pattern.
-        """
-        QuickBooks.__use_global = True
+        return self.auth_client.refresh_token
 
     def _drop(self):
         QuickBooks.__instance = None
@@ -162,12 +138,19 @@ class QuickBooks(object):
         return result
 
     def make_request(self, request_type, url, request_body=None, content_type='application/json',
-                     params=None, file_path=None):
+                     params=None, file_path=None, request_id=None):
+
         if not params:
             params = {}
 
         if self.minorversion:
             params['minorversion'] = self.minorversion
+        
+        if request_id:
+            params['requestid'] = request_id
+
+        if self.invoice_link:
+            params['include'] = 'invoiceLink'
 
         if not request_body:
             request_body = {}
@@ -179,7 +162,6 @@ class QuickBooks(object):
         }
 
         if file_path:
-            attachment = open(file_path, 'rb')
             url = url.replace('attachable', 'upload')
             boundary = '-------------PythonMultipartPost'
             headers.update({
@@ -190,7 +172,8 @@ class QuickBooks(object):
                 'Connection': 'close'
             })
 
-            binary_data = str(base64.b64encode(attachment.read()).decode('ascii'))
+            with open(file_path, 'rb') as attachment:
+                binary_data = str(base64.b64encode(attachment.read()).decode('ascii'))
 
             content_type = json.loads(request_body)['ContentType']
 
@@ -219,7 +202,8 @@ class QuickBooks(object):
         req = self.process_request(request_type, url, headers=headers, params=params, data=request_body)
 
         if req.status_code == httplib.UNAUTHORIZED:
-            raise exceptions.AuthorizationException("Application authentication failed", detail=req.text)
+            raise exceptions.AuthorizationException(
+                "Application authentication failed", error_code=req.status_code, detail=req.text)
 
         try:
             result = req.json()
@@ -245,6 +229,9 @@ class QuickBooks(object):
             raise exceptions.QuickbooksException('No session manager')
 
         headers.update({'Authorization': 'Bearer ' + self.session.access_token})
+
+        if isinstance(data, str):
+            data = data.encode("utf-8")
 
         return self.session.request(
             request_type, url, headers=headers, params=params, data=data)
@@ -289,17 +276,17 @@ class QuickBooks(object):
             else:
                 raise exceptions.QuickbooksException(message, code, detail)
 
-    def create_object(self, qbbo, request_body, _file_path=None):
+    def create_object(self, qbbo, request_body, _file_path=None, request_id=None, params=None):
         self.isvalid_object_name(qbbo)
 
         url = "{0}/company/{1}/{2}".format(self.api_url, self.company_id, qbbo.lower())
-        results = self.post(url, request_body, file_path=_file_path)
+        results = self.post(url, request_body, file_path=_file_path, request_id=request_id, params=params)
 
         return results
 
-    def query(self, select):
+    def query(self, select, params=None):
         url = "{0}/company/{1}/query".format(self.api_url, self.company_id)
-        result = self.post(url, select, content_type='application/text')
+        result = self.post(url, select, content_type='application/text', params=params)
 
         return result
 
@@ -309,15 +296,15 @@ class QuickBooks(object):
 
         return True
 
-    def update_object(self, qbbo, request_body, _file_path=None):
+    def update_object(self, qbbo, request_body, _file_path=None, request_id=None, params=None):
         url = "{0}/company/{1}/{2}".format(self.api_url, self.company_id,  qbbo.lower())
-        result = self.post(url, request_body, file_path=_file_path)
+        result = self.post(url, request_body, file_path=_file_path, request_id=request_id, params=params)
 
         return result
 
-    def delete_object(self, qbbo, request_body, _file_path=None):
+    def delete_object(self, qbbo, request_body, _file_path=None, request_id=None):
         url = "{0}/company/{1}/{2}".format(self.api_url, self.company_id, qbbo.lower())
-        result = self.post(url, request_body, params={'operation': 'delete'}, file_path=_file_path)
+        result = self.post(url, request_body, params={'operation': 'delete'}, file_path=_file_path, request_id=request_id)
 
         return result
 
@@ -352,7 +339,8 @@ class QuickBooks(object):
 
             if response.status_code == httplib.UNAUTHORIZED:
                 # Note that auth errors have different result structure which can't be parsed by handle_exceptions()
-                raise exceptions.AuthorizationException("Application authentication failed", detail=response.text)
+                raise exceptions.AuthorizationException(
+                    "Application authentication failed", error_code=response.status_code, detail=response.text)
 
             try:
                 result = response.json()

@@ -5,7 +5,7 @@ def qb_date_format(input_date):
     :param input_date:
     :return:
     """
-    return input_date.strftime("%Y-%m-%d")
+    return input_date.isoformat()
 
 
 def qb_datetime_format(input_date):
@@ -14,7 +14,7 @@ def qb_datetime_format(input_date):
     :param input_date:
     :return:
     """
-    return input_date.strftime("%Y-%m-%dT%H:%M:%S")
+    return input_date.isoformat()
 
 
 def qb_datetime_utc_offset_format(input_date, utc_offset):

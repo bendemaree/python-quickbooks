@@ -1,5 +1,4 @@
-from six import python_2_unicode_compatible
-from ..mixins import ToDictMixin, ToJsonMixin, FromJsonMixin, ListMixin, ReadMixin, UpdateMixin, UpdateNoCreateMixin
+from ..mixins import ToDictMixin, ToJsonMixin, FromJsonMixin, ListMixin, ReadMixin, UpdateMixin
 
 
 class QuickbooksBaseObject(ToJsonMixin, FromJsonMixin, ToDictMixin):
@@ -24,11 +23,6 @@ class QuickbooksReadOnlyObject(QuickbooksBaseObject, ReadMixin, ListMixin):
     pass
 
 
-class QuickbooksUpdateOnlyObject(QuickbooksBaseObject, ReadMixin, ListMixin, UpdateNoCreateMixin):
-    pass
-
-
-@python_2_unicode_compatible
 class MetaData(FromJsonMixin):
     def __init__(self):
         self.CreateTime = ""
@@ -48,7 +42,6 @@ class LinkedTxnMixin(object):
         return linked_txn
 
 
-@python_2_unicode_compatible
 class Address(QuickbooksBaseObject):
     def __init__(self):
         self.Id = None
@@ -69,7 +62,6 @@ class Address(QuickbooksBaseObject):
         return "{0} {1}, {2} {3}".format(self.Line1, self.City, self.CountrySubDivisionCode, self.PostalCode)
 
 
-@python_2_unicode_compatible
 class PhoneNumber(ToJsonMixin, FromJsonMixin, ToDictMixin):
     def __init__(self):
         self.FreeFormNumber = ""
@@ -78,7 +70,6 @@ class PhoneNumber(ToJsonMixin, FromJsonMixin, ToDictMixin):
         return self.FreeFormNumber
 
 
-@python_2_unicode_compatible
 class EmailAddress(QuickbooksBaseObject):
     def __init__(self):
         self.Address = ""
@@ -87,7 +78,6 @@ class EmailAddress(QuickbooksBaseObject):
         return self.Address
 
 
-@python_2_unicode_compatible
 class WebAddress(QuickbooksBaseObject):
     def __init__(self):
         self.URI = ""
@@ -96,7 +86,6 @@ class WebAddress(QuickbooksBaseObject):
         return self.URI
 
 
-@python_2_unicode_compatible
 class Ref(QuickbooksBaseObject):
     def __init__(self):
         self.value = ""
@@ -107,7 +96,6 @@ class Ref(QuickbooksBaseObject):
         return self.name
 
 
-@python_2_unicode_compatible
 class CustomField(QuickbooksBaseObject):
     def __init__(self):
         self.DefinitionId = ""
@@ -119,7 +107,6 @@ class CustomField(QuickbooksBaseObject):
         return self.Name
 
 
-@python_2_unicode_compatible
 class LinkedTxn(QuickbooksBaseObject):
     qbo_object_name = "LinkedTxn"
 
@@ -133,7 +120,6 @@ class LinkedTxn(QuickbooksBaseObject):
         return str(self.TxnId)
 
 
-@python_2_unicode_compatible
 class CustomerMemo(QuickbooksBaseObject):
     def __init__(self):
         super(CustomerMemo, self).__init__()
