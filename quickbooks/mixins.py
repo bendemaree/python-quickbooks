@@ -12,17 +12,11 @@ class DecimalEncoder(json.JSONEncoder):
             return str(obj)
         return super(DecimalEncoder, self).default(obj)
 
+
 class ToJsonMixin(object):
     def to_json(self):
-        return json.dumps(self, cls=DecimalEncoder, default=self.json_filter(), sort_keys=True, indent=4)
-
-    def json_filter(self):
-        """
-        filter out properties that have names starting with _
-        or properties that have a value of None
-        """
-        return lambda obj: dict((k, v) for k, v in obj.__dict__.items()
-                                if not k.startswith('_') and getattr(obj, k) is not None)
+        filtered = {k: v for k, v in self.__dict__.items() if not k.startswith('_') and getattr(self, k, None) is not None}
+        return json.dumps(filtered, cls=DecimalEncoder, sort_keys=True, indent=4)
 
 
 class FromJsonMixin(object):
